@@ -149,7 +149,11 @@ async def predict_image(
 
     prediction_dir = UPLOADS_DIR / "predictions"
     prediction_dir.mkdir(parents=True, exist_ok=True)
-    image_path = prediction_dir / file.filename
+    # Use only the uploaded file's base name to avoid nested paths
+    from pathlib import Path as _Path
+
+    safe_name = _Path(file.filename).name
+    image_path = prediction_dir / safe_name
     image_path.write_bytes(await file.read())
 
     result = perform_prediction(str(image_path), model_id)

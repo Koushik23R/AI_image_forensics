@@ -8,13 +8,45 @@ from typing import Any, Dict, Optional
 BASE_DIR = Path(__file__).resolve().parents[1]
 UPLOADS_DIR = BASE_DIR / "uploads"
 SAVED_MODELS_DIR = BASE_DIR / "saved_models"
+DB_DIR = BASE_DIR / "db"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 SAVED_MODELS_DIR.mkdir(parents=True, exist_ok=True)
+DB_DIR.mkdir(parents=True, exist_ok=True)
 
 # In-memory storage kept intentionally close to the notebook design.
 dataset_db: Dict[str, Dict[str, Any]] = {}
 models_db: Dict[str, Dict[str, Any]] = {}
 training_jobs_db: Dict[str, Dict[str, Any]] = {}
+
+
+def _load_json_file(path: Path) -> Dict[str, Any]:
+    try:
+        if path.exists():
+            import json
+
+            return json.loads(path.read_text())
+    except Exception:
+        return {}
+    return {}
+
+
+def _save_json_file(path: Path, data: Dict[str, Any]) -> None:
+    try:
+        import json
+
+        path.write_text(json.dumps(data))
+    except Exception:
+        pass
+
+
+# Load persisted DB state if available
+_models_path = DB_DIR / "models.json"
+_datasets_path = DB_DIR / "datasets.json"
+_jobs_path = DB_DIR / "jobs.json"
+
+models_db.update(_load_json_file(_models_path))
+dataset_db.update(_load_json_file(_datasets_path))
+training_jobs_db.update(_load_json_file(_jobs_path))
 
 
 def generate_unique_id() -> str:
@@ -23,6 +55,7 @@ def generate_unique_id() -> str:
 
 def save_model_metadata(model_id: str, metadata: Dict[str, Any]) -> None:
     models_db[model_id] = metadata
+    _save_json_file(_models_path, models_db)
 
 
 def get_model_metadata(model_id: str) -> Optional[Dict[str, Any]]:
@@ -31,6 +64,7 @@ def get_model_metadata(model_id: str) -> Optional[Dict[str, Any]]:
 
 def save_dataset_metadata(dataset_id: str, metadata: Dict[str, Any]) -> None:
     dataset_db[dataset_id] = metadata
+    _save_json_file(_datasets_path, dataset_db)
 
 
 def get_dataset_metadata(dataset_id: str) -> Optional[Dict[str, Any]]:
@@ -92,6 +126,7 @@ def update_training_job_status(
         job_record["current_epoch"] = current_epoch
     if log_message:
         job_record.setdefault("logs", []).append(log_message)
+    _save_json_file(_jobs_path, training_jobs_db)
 
 
 def list_models() -> Dict[str, Dict[str, Any]]:
